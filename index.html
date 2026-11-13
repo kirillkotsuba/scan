@@ -56,7 +56,9 @@ function loadLib(urls, done) {
 }
 
 var tg = window.Telegram && window.Telegram.WebApp;
-var inTelegram = !!(tg && tg.initData);
+// Окно, открытое кнопкой нижнего меню, не получает initData — узнаём Telegram по платформе
+var inTelegram = !!(tg && tg.sendData && ((tg.platform && tg.platform !== "unknown") || tg.initData
+                    || window.TelegramWebviewProxy || (window.external && "notify" in window.external)));
 var statusEl = document.getElementById("status");
 var scanner = null, sent = false, last = "", lastAt = 0;
 
@@ -71,10 +73,13 @@ function finish(code) {
   sent = true;
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
   status("✅ " + code, "ok");
-  var stop = scanner ? scanner.stop().catch(function () {}) : Promise.resolve();
+  var stop;
+  try { stop = scanner && scanner.isScanning ? scanner.stop().catch(function () {}) : Promise.resolve(); }
+  catch (e) { stop = Promise.resolve(); }
   stop.then(function () {
-    if (inTelegram) tg.sendData(code.slice(0, 500));
-    else { sent = false; status("✅ " + code + " (вне Telegram — только показ)", "ok"); }
+    if (!inTelegram) { sent = false; status("✅ " + code + " (вне Telegram — только показ)", "ok"); return; }
+    try { tg.sendData(code.slice(0, 500)); }
+    catch (e) { sent = false; status("Не удалось отправить код боту: " + (e && e.message || e) + ". Введите трек в чат вручную: " + code, "err"); }
   });
 }
 
