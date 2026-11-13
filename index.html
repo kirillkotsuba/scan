@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Сканер</title>
 <meta name="robots" content="noindex, nofollow">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- копия лежит рядом со страницей: с телефона telegram.org может не открываться, и экран оставался пустым -->
+<script src="telegram-web-app.js"></script>
 <style>
   :root { --bg: #0d0d0f; --fg: #f3f3f3; --muted: #9a9aa2; --accent: #e5322d; --ok: #2ecc71; }
   * { box-sizing: border-box; }
@@ -45,10 +46,12 @@
 // Библиотека чтения штрихкодов: основной адрес и запасной
 function loadLib(urls, done) {
   if (!urls.length) return done(false);
-  var s = document.createElement("script");
+  var s = document.createElement("script"), over = false;
+  function next() { if (over) return; over = true; s.remove(); loadLib(urls.slice(1), done); }
+  var timer = setTimeout(next, 12000);  // адрес «висит» — пробуем следующий
   s.src = urls[0];
-  s.onload = function () { done(true); };
-  s.onerror = function () { s.remove(); loadLib(urls.slice(1), done); };
+  s.onload = function () { if (over) return; over = true; clearTimeout(timer); done(true); };
+  s.onerror = function () { clearTimeout(timer); next(); };
   document.head.appendChild(s);
 }
 
@@ -126,7 +129,8 @@ document.getElementById("manual").onsubmit = function (e) {
   finish(document.getElementById("code").value);
 };
 
-loadLib(["https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js",
+loadLib(["html5-qrcode.min.js",
+         "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js",
          "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"], function (ok) {
   if (ok) start();
   else status("Не загрузилась камера (нет интернета?). Введите трек вручную.", "err");
